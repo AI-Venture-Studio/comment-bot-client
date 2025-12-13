@@ -1,0 +1,502 @@
+"use client"
+
+import { useState } from "react"
+import { format } from "date-fns"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Separator } from "@/components/ui/separator"
+import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
+import { toast } from "sonner"
+import { CalendarIcon, Plus } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { createClient } from "@supabase/supabase-js"
+import { v4 as uuidv4 } from "uuid"
+
+type Platform = "instagram" | "tiktok" | "threads" | "x"
+type TargetingMode = "date" | "posts"
+type CampaignStatus = "not-started" | "in-progress" | "completed"
+
+interface CampaignConfig {
+  customComment: string
+  platform: Platform | ""
+  userAccounts: string[]
+  targetProfiles: string[]
+  targetingMode: TargetingMode
+  targetDate?: Date
+  numberOfPosts?: number
+}
+
+// Initialize Supabase client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+const supabase = createClient(supabaseUrl, supabaseKey)
+
+export function ConfigureComment() {
+  const [config, setConfig] = useState<CampaignConfig>({
+    customComment: "",
+    platform: "",
+    userAccounts: [],
+    targetProfiles: [],
+    targetingMode: "posts",
+    numberOfPosts: 5,
+  })
+
+  const [currentUserAccount, setCurrentUserAccount] = useState("")
+  const [currentTargetProfile, setCurrentTargetProfile] = useState("")
+  const [isSaving, setIsSaving] = useState(false)
+  const [datePickerOpen, setDatePickerOpen] = useState(false)
+
+  const platforms: { id: Platform; label: string }[] = [
+    { id: "instagram", label: "Instagram" },
+    { id: "tiktok", label: "TikTok" },
+    { id: "threads", label: "Threads" },
+    { id: "x", label: "X (Twitter)" },
+  ]
+
+  const addUserAccount = () => {
+    if (currentUserAccount.trim() && !config.userAccounts.includes(currentUserAccount.trim())) {
+      setConfig((prev) => ({
+        ...prev,
+        userAccounts: [...prev.userAccounts, currentUserAccount.trim()],
+      }))
+      setCurrentUserAccount("")
+    }
+  }
+
+  const removeUserAccount = (account: string) => {
+    setConfig((prev) => ({
+      ...prev,
+      userAccounts: prev.userAccounts.filter((a) => a !== account),
+    }))
+  }
+
+  const addTargetProfile = () => {
+    if (currentTargetProfile.trim() && !config.targetProfiles.includes(currentTargetProfile.trim())) {
+      setConfig((prev) => ({
+        ...prev,
+        targetProfiles: [...prev.targetProfiles, currentTargetProfile.trim()],
+      }))
+      setCurrentTargetProfile("")
+    }
+  }
+
+  const removeTargetProfile = (profile: string) => {
+    setConfig((prev) => ({
+      ...prev,
+      targetProfiles: prev.targetProfiles.filter((p) => p !== profile),
+    }))
+  }
+
+  const getPlatformLabel = (platformId: Platform | "") => {
+    if (!platformId) return ""
+    const platform = platforms.find((p) => p.id === platformId)
+    return platform?.label || ""
+  }
+
+  const isFormComplete = () => {
+    const hasComment = config.customComment.trim().length > 0
+    const hasPlatform = config.platform !== ""
+    const hasUserAccounts = config.userAccounts.length > 0
+    const hasTargets = config.targetProfiles.length > 0
+    const hasValidTargeting = 
+      (config.targetingMode === "posts" && config.numberOfPosts && config.numberOfPosts > 0) ||
+      (config.targetingMode === "date" && config.targetDate !== undefined)
+    
+    return hasComment && hasPlatform && hasUserAccounts && hasTargets && hasValidTargeting
+  }
+
+  const getActionSummary = () => {
+    const comment = config.customComment.length > 40 
+      ? config.customComment.slice(0, 40) + "..." 
+      : config.customComment
+    
+    const targets = config.targetProfiles.map(p => `@${p}`).join(", ")
+    const platform = getPlatformLabel(config.platform)
+    
+    let targeting = ""
+    if (config.targetingMode === "posts") {
+      targeting = `latest ${config.numberOfPosts} ${config.numberOfPosts === 1 ? 'post' : 'posts'}`
+    } else if (config.targetDate) {
+      targeting = `posts from ${format(config.targetDate, "MMM d, yyyy")} to now`
+    }
+
+    return { comment, targets, platform, targeting }
+  }
+
+  const handleAddToQueue = async () => {
+    // Validation
+    if (!config.customComment.trim()) {
+      toast.error("Please enter a custom comment")
+      return
+    }
+
+    if (!config.platform) {
+      toast.error("Please select a platform")
+      return
+    }
+
+    if (config.userAccounts.length === 0) {
+      toast.error("Please add at least one user account")
+      return
+    }
+
+    if (config.targetProfiles.length === 0) {
+      toast.error("Please add at least one target profile")
+      return
+    }
+
+    if (config.targetingMode === "date" && !config.targetDate) {
+      toast.error("Please select a target date")
+      return
+    }
+
+    if (config.targetingMode === "posts" && (!config.numberOfPosts || config.numberOfPosts < 1)) {
+      toast.error("Please enter a valid number of posts")
+      return
+    }
+
+    setIsSaving(true)
+
+    try {
+      // Generate a unique campaign ID
+      const campaignId = `campaign_${uuidv4().substring(0, 8)}_${Date.now()}`
+
+      // Prepare data for Supabase
+      const campaignData = {
+        campaign_id: campaignId,
+        custom_comment: config.customComment,
+        platform: config.platform,
+        user_accounts: config.userAccounts,
+        target_profiles: config.targetProfiles,
+        targeting_mode: config.targetingMode,
+        target_date: config.targetingMode === "date" ? config.targetDate?.toISOString() : null,
+        number_of_posts: config.targetingMode === "posts" ? config.numberOfPosts : null,
+        status: "not-started" as CampaignStatus,
+      }
+
+      // Save to Supabase
+      const { data, error } = await supabase
+        .from("comment_campaigns")
+        .insert([campaignData])
+        .select()
+
+      if (error) {
+        console.error("Supabase error:", error)
+        toast.error(`Failed to save campaign: ${error.message}`)
+        return
+      }
+
+      toast.success(`Comment Campaign saved successfully!`)
+      console.log("Campaign configuration saved:", data)
+
+      // Reset form after successful save
+      setConfig({
+        customComment: "",
+        platform: "",
+        userAccounts: [],
+        targetProfiles: [],
+        targetingMode: "posts",
+        numberOfPosts: 5,
+      })
+    } catch (error) {
+      console.error("Error saving campaign:", error)
+      toast.error("Failed to save campaign. Please try again.")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  return (
+    <Card className="w-full max-w-3xl">
+      <CardHeader className="space-y-2">
+        <div className="flex items-center gap-2">
+          <CardTitle>Configure Comment Campaign</CardTitle>
+        </div>
+        <CardDescription>
+          Set up your automated commenting campaign across social media platforms
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Custom Comment */}
+        <div className="space-y-2">
+          <Label htmlFor="custom-comment">Custom Comment</Label>
+          <Textarea
+            id="custom-comment"
+            placeholder="Enter the comment you want to post on targeted profiles..."
+            className="min-h-[100px] resize-none"
+            value={config.customComment}
+            onChange={(e) => setConfig((prev) => ({ ...prev, customComment: e.target.value }))}
+          />
+          <p className="text-xs text-muted-foreground">
+            {config.customComment.length} characters
+          </p>
+        </div>
+
+        <Separator />
+
+        {/* Campaign Platform & Post Targeting side by side */}
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-6">
+          {/* Campaign Platform */}
+          <div className="space-y-3">
+            <Label>Campaign Platform</Label>
+            <Select
+              value={config.platform}
+              onValueChange={(value) => setConfig((prev) => ({ ...prev, platform: value as Platform }))}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a platform" />
+              </SelectTrigger>
+              <SelectContent>
+                {platforms.map((platform) => (
+                  <SelectItem 
+                    key={platform.id} 
+                    value={platform.id}
+                    disabled={platform.id !== "instagram"}
+                  >
+                    {platform.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Vertical Separator */}
+          <div className="hidden md:flex items-center">
+            <Separator orientation="vertical" className="h-full" />
+          </div>
+
+          {/* Post Targeting Method */}
+          <div className="space-y-3">
+            <Label>Post Targeting Method</Label>
+            <RadioGroup
+              value={config.targetingMode}
+              onValueChange={(value) =>
+                setConfig((prev) => ({ ...prev, targetingMode: value as TargetingMode }))
+              }
+            >
+              <div className="space-y-3">
+                <div className="flex items-start space-x-2">
+                  <RadioGroupItem value="posts" id="posts" className="mt-1" />
+                  <div className="flex-1 space-y-2">
+                    <Label htmlFor="posts" className="cursor-pointer font-normal">
+                      Target by Number of Posts
+                    </Label>
+                    {config.targetingMode === "posts" && (
+                      <Input
+                        type="number"
+                        min="1"
+                        placeholder="Number of posts"
+                        value={config.numberOfPosts || ""}
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            numberOfPosts: parseInt(e.target.value) || 0,
+                          }))
+                        }
+                        className="max-w-[150px]"
+                      />
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-2">
+                  <RadioGroupItem value="date" id="date" className="mt-1" />
+                  <div className="flex-1 space-y-2">
+                    <Label htmlFor="date" className="cursor-pointer font-normal">
+                      Target posts from date to now
+                    </Label>
+                    {config.targetingMode === "date" && (
+                      <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full max-w-[200px] justify-start text-left font-normal",
+                              !config.targetDate && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {config.targetDate ? format(config.targetDate, "PPP") : "Pick a date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={config.targetDate}
+                            onSelect={(date) => {
+                              setConfig((prev) => ({ ...prev, targetDate: date }))
+                              setDatePickerOpen(false)
+                            }}
+                            disabled={(date) => date > new Date()}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </RadioGroup>
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* User Accounts */}
+        <div className="space-y-3">
+          <Label htmlFor="user-account">Your User Accounts</Label>
+          <div className="flex gap-2">
+            <Input
+              id="user-account"
+              placeholder="Enter username"
+              value={currentUserAccount}
+              onChange={(e) => setCurrentUserAccount(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  addUserAccount()
+                }
+              }}
+            />
+            <Button type="button" onClick={addUserAccount} variant="secondary">
+              <Plus className="h-4 w-4 mr-1" />
+              Add
+            </Button>
+          </div>
+          {config.userAccounts.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {config.userAccounts.map((account) => (
+                <Badge key={account} variant="secondary" className="gap-1">
+                  @{account}
+                  <button
+                    type="button"
+                    onClick={() => removeUserAccount(account)}
+                    className="ml-1 hover:text-destructive"
+                  >
+                    ×
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <Separator />
+
+        {/* Target Profiles */}
+        <div className="space-y-3">
+          <Label htmlFor="target-profile">Target Profiles</Label>
+          <div className="flex gap-2">
+            <Input
+              id="target-profile"
+              placeholder="Enter target username or profile"
+              value={currentTargetProfile}
+              onChange={(e) => setCurrentTargetProfile(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  addTargetProfile()
+                }
+              }}
+            />
+            <Button type="button" onClick={addTargetProfile} variant="secondary">
+              <Plus className="h-4 w-4 mr-1" />
+              Add
+            </Button>
+          </div>
+          {config.targetProfiles.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {config.targetProfiles.map((profile) => (
+                <Badge key={profile} variant="default" className="gap-1">
+                  @{profile}
+                  <button
+                    type="button"
+                    onClick={() => removeTargetProfile(profile)}
+                    className="ml-1 hover:text-destructive"
+                  >
+                    ×
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <Separator />
+
+        {/* Action Summary - Only show when form is complete */}
+        {isFormComplete() && (
+          <div className="rounded-lg border bg-primary/5 border-primary/20 p-4 space-y-2">
+            <p className="text-xs font-medium text-primary uppercase tracking-wide">Comment Campaign Summary</p>
+            <div className="space-y-1.5">
+              {(() => {
+                const summary = getActionSummary()
+                return (
+                  <>
+                    <div className="flex gap-2 text-sm">
+                      <span className="text-muted-foreground min-w-[80px]">Comment:</span>
+                      <span className="font-medium">"{summary.comment}"</span>
+                    </div>
+                    <div className="flex gap-2 text-sm">
+                      <span className="text-muted-foreground min-w-[80px]">Platform:</span>
+                      <span className="font-medium">{summary.platform}</span>
+                    </div>
+                    <div className="flex gap-2 text-sm">
+                      <span className="text-muted-foreground min-w-[80px]">Targets:</span>
+                      <span className="font-medium">{summary.targets}</span>
+                    </div>
+                    <div className="flex gap-2 text-sm">
+                      <span className="text-muted-foreground min-w-[80px]">Posts:</span>
+                      <span className="font-medium">{summary.targeting}</span>
+                    </div>
+                  </>
+                )
+              })()}
+            </div>
+          </div>
+        )}
+
+        {/* Buttons */}
+        <div className="flex justify-end gap-3 pt-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setConfig({
+                customComment: "",
+                platform: "",
+                userAccounts: [],
+                targetProfiles: [],
+                targetingMode: "posts",
+                numberOfPosts: 5,
+              })
+              toast.info("Form cleared")
+            }}
+          >
+            Clear
+          </Button>
+          <Button onClick={handleAddToQueue} disabled={isSaving}>
+            {isSaving ? (
+              <>
+                <span className="mr-2">Adding...</span>
+                <span className="animate-spin">⏳</span>
+              </>
+            ) : (
+              <>
+                <Plus className="mr-2 h-4 w-4" />
+                Add to Queue
+              </>
+            )}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
