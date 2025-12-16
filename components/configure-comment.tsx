@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { format } from "date-fns"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -14,10 +14,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { toast } from "sonner"
-import { CalendarIcon, Plus } from "lucide-react"
+import { CalendarIcon, Plus, Search, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@supabase/supabase-js"
 import { v4 as uuidv4 } from "uuid"
+import { getActiveAccountsForPlatform } from "@/lib/social-accounts-client"
+import type { SocialAccount, SocialPlatform } from "@/lib/types/social-account"
 
 type Platform = "instagram" | "tiktok" | "threads" | "x"
 type TargetingMode = "date" | "posts"
@@ -52,6 +54,10 @@ export function ConfigureComment() {
   const [currentTargetProfile, setCurrentTargetProfile] = useState("")
   const [isSaving, setIsSaving] = useState(false)
   const [datePickerOpen, setDatePickerOpen] = useState(false)
+  const [availableAccounts, setAvailableAccounts] = useState<Pick<SocialAccount, "id" | "username">[]>([])
+  const [accountSearchQuery, setAccountSearchQuery] = useState("")
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(false)
+  const [accountDropdownOpen, setAccountDropdownOpen] = useState(false)
 
   const platforms: { id: Platform; label: string }[] = [
     { id: "instagram", label: "Instagram" },
@@ -60,13 +66,63 @@ export function ConfigureComment() {
     { id: "x", label: "X (Twitter)" },
   ]
 
-  const addUserAccount = () => {
-    if (currentUserAccount.trim() && !config.userAccounts.includes(currentUserAccount.trim())) {
+  // Load saved form state from localStorage on mount
+  useEffect(() => {
+    const savedConfig = localStorage.getItem('campaignConfig')
+    if (savedConfig) {
+      try {
+        const parsed = JSON.parse(savedConfig)
+        // Convert targetDate string back to Date object if present
+        if (parsed.targetDate) {
+          parsed.targetDate = new Date(parsed.targetDate)
+        }
+        setConfig(parsed)
+      } catch (error) {
+        console.error('Error loading saved config:', error)
+      }
+    }
+  }, [])
+
+  // Save form state to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('campaignConfig', JSON.stringify(config))
+  }, [config])
+
+  // Fetch available accounts when platform changes
+  useEffect(() => {
+    const fetchAccounts = async () => {
+      if (!config.platform) {
+        setAvailableAccounts([])
+        return
+      }
+
+      setIsLoadingAccounts(true)
+      const { data, error } = await getActiveAccountsForPlatform(config.platform as SocialPlatform)
+      
+      if (error) {
+        console.error("Error fetching accounts:", error)
+        toast.error("Failed to load accounts for this platform")
+        setAvailableAccounts([])
+      } else if (data) {
+        setAvailableAccounts(data)
+      }
+      
+      setIsLoadingAccounts(false)
+    }
+
+    fetchAccounts()
+  }, [config.platform])
+
+  const addUserAccount = (username?: string) => {
+    const accountToAdd = username || currentUserAccount.trim()
+    if (accountToAdd && !config.userAccounts.includes(accountToAdd)) {
       setConfig((prev) => ({
         ...prev,
-        userAccounts: [...prev.userAccounts, currentUserAccount.trim()],
+        userAccounts: [...prev.userAccounts, accountToAdd],
       }))
       setCurrentUserAccount("")
+      setAccountSearchQuery("")
+      setAccountDropdownOpen(false)
     }
   }
 
@@ -197,14 +253,16 @@ export function ConfigureComment() {
       console.log("Campaign configuration saved:", data)
 
       // Reset form after successful save
-      setConfig({
+      const resetConfig = {
         customComment: "",
-        platform: "",
+        platform: "" as Platform | "",
         userAccounts: [],
         targetProfiles: [],
-        targetingMode: "posts",
+        targetingMode: "posts" as TargetingMode,
         numberOfPosts: 5,
-      })
+      }
+      setConfig(resetConfig)
+      localStorage.removeItem('campaignConfig')
     } catch (error) {
       console.error("Error saving campaign:", error)
       toast.error("Failed to save campaign. Please try again.")
@@ -352,24 +410,74 @@ export function ConfigureComment() {
         {/* User Accounts */}
         <div className="space-y-3">
           <Label htmlFor="user-account">Your User Accounts</Label>
-          <div className="flex gap-2">
-            <Input
-              id="user-account"
-              placeholder="Enter username"
-              value={currentUserAccount}
-              onChange={(e) => setCurrentUserAccount(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault()
-                  addUserAccount()
-                }
-              }}
-            />
-            <Button type="button" onClick={addUserAccount} variant="secondary">
-              <Plus className="h-4 w-4 mr-1" />
-              Add
-            </Button>
-          </div>
+          <p className="text-xs text-muted-foreground">
+            {config.platform 
+              ? `Search and select ${platforms.find(p => p.id === config.platform)?.label} accounts from your saved accounts`
+              : "Select a platform first to choose accounts"
+            }
+          </p>
+          <Popover open={accountDropdownOpen} onOpenChange={setAccountDropdownOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full justify-between"
+                disabled={!config.platform || isLoadingAccounts}
+              >
+                <span className="text-muted-foreground">
+                  {isLoadingAccounts 
+                    ? "Loading accounts..." 
+                    : !config.platform
+                    ? "Select a platform first"
+                    : availableAccounts.length === 0
+                    ? "No accounts available - add accounts first"
+                    : "Search and select account"}
+                </span>
+                <Search className="h-4 w-4 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+              <div className="p-2 border-b">
+                <div className="relative">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search accounts..."
+                    value={accountSearchQuery}
+                    onChange={(e) => setAccountSearchQuery(e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
+              </div>
+              <div className="max-h-[200px] overflow-y-auto p-1">
+                {availableAccounts
+                  .filter((account) =>
+                    account.username.toLowerCase().includes(accountSearchQuery.toLowerCase())
+                  )
+                  .filter((account) => !config.userAccounts.includes(account.username))
+                  .map((account) => (
+                    <button
+                      key={account.id}
+                      onClick={() => addUserAccount(account.username)}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted rounded-sm transition-colors"
+                    >
+                      @{account.username}
+                    </button>
+                  ))}
+                {availableAccounts.filter(
+                  (account) =>
+                    account.username.toLowerCase().includes(accountSearchQuery.toLowerCase()) &&
+                    !config.userAccounts.includes(account.username)
+                ).length === 0 && (
+                  <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                    {accountSearchQuery
+                      ? "No accounts found matching your search"
+                      : config.userAccounts.length === availableAccounts.length
+                      ? "All accounts already selected"
+                      : "No accounts available"}
+                  </div>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
           {config.userAccounts.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {config.userAccounts.map((account) => (
@@ -469,14 +577,16 @@ export function ConfigureComment() {
             type="button"
             variant="outline"
             onClick={() => {
-              setConfig({
+              const resetConfig = {
                 customComment: "",
-                platform: "",
+                platform: "" as Platform | "",
                 userAccounts: [],
                 targetProfiles: [],
-                targetingMode: "posts",
+                targetingMode: "posts" as TargetingMode,
                 numberOfPosts: 5,
-              })
+              }
+              setConfig(resetConfig)
+              localStorage.removeItem('campaignConfig')
               toast.info("Form cleared")
             }}
           >

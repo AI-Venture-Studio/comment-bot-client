@@ -182,3 +182,68 @@ export async function searchCampaignsByComment(searchText: string) {
     return { data: null, error }
   }
 }
+
+/**
+ * Get campaigns ordered by queue position
+ */
+export async function getCampaignsOrderedByQueue() {
+  try {
+    const { data, error } = await supabase
+      .from("comment_campaigns")
+      .select("*")
+      .order("queue_position", { ascending: true, nullsFirst: false })
+      .order("created_at", { ascending: false })
+
+    if (error) throw error
+    return { data: data as CommentCampaign[], error: null }
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+/**
+ * Update queue positions for multiple campaigns
+ */
+export async function updateQueuePositions(
+  campaigns: { id: string; queue_position: number }[]
+) {
+  try {
+    const updates = campaigns.map(({ id, queue_position }) =>
+      supabase
+        .from("comment_campaigns")
+        .update({ queue_position, updated_at: new Date().toISOString() })
+        .eq("id", id)
+    )
+
+    const results = await Promise.all(updates)
+    const errors = results.filter((r) => r.error)
+    
+    if (errors.length > 0) {
+      throw errors[0].error
+    }
+
+    return { success: true, error: null }
+  } catch (error) {
+    return { success: false, error }
+  }
+}
+
+/**
+ * Get the currently running campaign (if any)
+ */
+export async function getActiveCampaign() {
+  try {
+    const { data, error } = await supabase
+      .from("comment_campaigns")
+      .select("*")
+      .eq("status", "in-progress")
+      .order("queue_position", { ascending: true })
+      .limit(1)
+      .maybeSingle()
+
+    if (error) throw error
+    return { data: data as CommentCampaign | null, error: null }
+  } catch (error) {
+    return { data: null, error }
+  }
+}

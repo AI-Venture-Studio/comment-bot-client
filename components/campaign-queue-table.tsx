@@ -30,6 +30,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs"
+import {
   Table,
   TableBody,
   TableCell,
@@ -56,17 +62,17 @@ import {
 import { cn } from "@/lib/utils"
 import { CommentCampaign, CampaignStatus, Platform } from "@/lib/types/campaign"
 
-// Platform icons and colors
-const platformConfig: Record<Platform, { icon: string; label: string; color: string }> = {
-  instagram: { icon: "IG", label: "Instagram", color: "bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500" },
-  tiktok: { icon: "TT", label: "TikTok", color: "bg-black" },
-  threads: { icon: "TH", label: "Threads", color: "bg-gray-900" },
-  x: { icon: "X", label: "X (Twitter)", color: "bg-black" },
+// Platform labels
+const platformConfig: Record<Platform, { label: string }> = {
+  instagram: { label: "Instagram" },
+  tiktok: { label: "TikTok" },
+  threads: { label: "Threads" },
+  x: { label: "X (Twitter)" },
 }
 
 const statusConfig: Record<CampaignStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info" }> = {
   "not-started": { label: "Queued", variant: "secondary" },
-  "in-progress": { label: "Running", variant: "warning" },
+  "in-progress": { label: "Running", variant: "info" },
   "completed": { label: "Completed", variant: "success" },
 }
 
@@ -101,11 +107,11 @@ function SortableQueueItem({ campaign, position, onAction }: QueueItemProps) {
       className={cn(
         "border-b transition-colors hover:bg-muted/50",
         isDragging && "bg-muted shadow-lg z-50 relative",
-        campaign.status === "in-progress" && "bg-amber-50/50"
+        campaign.status === "in-progress" && "bg-green-50/50"
       )}
     >
       {/* Drag Handle */}
-      <TableCell className="w-10 px-2">
+      <TableCell className="w-8 px-1">
         <button
           {...attributes}
           {...listeners}
@@ -119,47 +125,45 @@ function SortableQueueItem({ campaign, position, onAction }: QueueItemProps) {
       </TableCell>
 
       {/* Position */}
-      <TableCell className="w-12 font-mono text-sm text-muted-foreground">
+      <TableCell className="w-8 px-1 font-mono text-xs text-muted-foreground">
         #{position}
       </TableCell>
 
       {/* Platform */}
-      <TableCell className="w-28">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">{platformInfo.label}</span>
-        </div>
+      <TableCell className="w-20">
+        <div className="text-xs font-medium truncate">{platformInfo.label}</div>
       </TableCell>
 
       {/* Target Profiles */}
-      <TableCell>
-        <div className="flex flex-wrap gap-1 max-w-[200px]">
-          {campaign.target_profiles.slice(0, 2).map((profile) => (
-            <Badge key={profile} variant="outline" className="text-xs">
+      <TableCell className="w-24">
+        <div className="flex flex-wrap gap-0.5">
+          {campaign.target_profiles.slice(0, 1).map((profile) => (
+            <Badge key={profile} variant="outline" className="text-xs px-1 py-0">
               {profile}
             </Badge>
           ))}
-          {campaign.target_profiles.length > 2 && (
-            <Badge variant="secondary" className="text-xs">
-              +{campaign.target_profiles.length - 2}
+          {campaign.target_profiles.length > 1 && (
+            <Badge variant="secondary" className="text-xs px-1 py-0">
+              +{campaign.target_profiles.length - 1}
             </Badge>
           )}
         </div>
       </TableCell>
 
       {/* Comment Preview */}
-      <TableCell className="max-w-[200px]">
-        <p className="text-sm truncate text-muted-foreground">
+      <TableCell className="flex-1 min-w-0">
+        <p className="text-xs truncate text-muted-foreground">
           &ldquo;{campaign.custom_comment}&rdquo;
         </p>
       </TableCell>
 
       {/* Status */}
-      <TableCell className="w-28">
-        <Badge variant={statusInfo.variant}>
+      <TableCell className="w-20">
+        <Badge variant={statusInfo.variant} className="text-xs">
           {campaign.status === "in-progress" && (
-            <span className="relative flex h-2 w-2 mr-1.5">
+            <span className="relative flex h-1.5 w-1.5 mr-1">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-current opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-current"></span>
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-current"></span>
             </span>
           )}
           {statusInfo.label}
@@ -167,7 +171,7 @@ function SortableQueueItem({ campaign, position, onAction }: QueueItemProps) {
       </TableCell>
 
       {/* Actions */}
-      <TableCell className="w-12">
+      <TableCell className="w-8 px-1">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -207,87 +211,13 @@ function SortableQueueItem({ campaign, position, onAction }: QueueItemProps) {
 }
 
 interface CampaignQueueTableProps {
-  campaigns?: CommentCampaign[]
-  onReorder?: (campaigns: CommentCampaign[]) => void
-  onAction?: (action: string, campaign: CommentCampaign) => void
+  campaigns: CommentCampaign[]
+  onReorder: (campaigns: CommentCampaign[]) => void
+  onAction: (action: string, campaign: CommentCampaign) => void
 }
 
-// Demo data for development - remove in production
-const demoCampaigns: CommentCampaign[] = [
-  {
-    id: "1",
-    campaign_id: "campaign_abc12345_1702475982",
-    custom_comment: "Great content! 🔥",
-    platform: "instagram",
-    user_accounts: ["@myaccount1", "@myaccount2"],
-    target_profiles: ["@hypebeastkicks", "@sneakerhead"],
-    targeting_mode: "date",
-    target_date: "2025-12-12",
-    number_of_posts: null,
-    status: "in-progress",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "2",
-    campaign_id: "campaign_def67890_1702475983",
-    custom_comment: "Love this! 💯",
-    platform: "tiktok",
-    user_accounts: ["@tiktokuser"],
-    target_profiles: ["@fashionpage", "@styleinspo", "@outfitcheck"],
-    targeting_mode: "posts",
-    target_date: null,
-    number_of_posts: 10,
-    status: "not-started",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "3",
-    campaign_id: "campaign_ghi11223_1702475984",
-    custom_comment: "So cool!",
-    platform: "instagram",
-    user_accounts: ["@another_account"],
-    target_profiles: ["@techreviews"],
-    targeting_mode: "posts",
-    target_date: null,
-    number_of_posts: 5,
-    status: "not-started",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "4",
-    campaign_id: "campaign_jkl44556_1702475985",
-    custom_comment: "This is amazing content!",
-    platform: "x",
-    user_accounts: ["@xuser"],
-    target_profiles: ["@elonmusk", "@twitter"],
-    targeting_mode: "date",
-    target_date: "2025-12-10",
-    number_of_posts: null,
-    status: "not-started",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "5",
-    campaign_id: "campaign_mno77889_1702475986",
-    custom_comment: "Incredible thread! 🧵",
-    platform: "threads",
-    user_accounts: ["@threadsuser"],
-    target_profiles: ["@meta"],
-    targeting_mode: "posts",
-    target_date: null,
-    number_of_posts: 8,
-    status: "completed",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-]
-
 export function CampaignQueueTable({ 
-  campaigns = demoCampaigns, 
+  campaigns, 
   onReorder,
   onAction 
 }: CampaignQueueTableProps) {
@@ -301,16 +231,16 @@ export function CampaignQueueTable({
     })
   )
 
-  // Filter and sort campaigns
-  const filteredItems = useMemo(() => {
-    let filtered = items
+  // Filter campaigns by status
+  const queuedCampaigns = useMemo(() => {
+    let filtered = items.filter((item) => item.status !== "completed")
     
     // Apply platform filter
     if (platformFilter !== "all") {
-      filtered = items.filter((item) => item.platform === platformFilter)
+      filtered = filtered.filter((item) => item.platform === platformFilter)
     }
     
-    // Sort: in-progress first, then not-started, then completed
+    // Sort: in-progress first, then not-started
     const statusOrder: Record<CampaignStatus, number> = {
       "in-progress": 0,
       "not-started": 1,
@@ -318,6 +248,17 @@ export function CampaignQueueTable({
     }
     
     return [...filtered].sort((a, b) => statusOrder[a.status] - statusOrder[b.status])
+  }, [items, platformFilter])
+
+  const completedCampaigns = useMemo(() => {
+    let filtered = items.filter((item) => item.status === "completed")
+    
+    // Apply platform filter
+    if (platformFilter !== "all") {
+      filtered = filtered.filter((item) => item.platform === platformFilter)
+    }
+    
+    return filtered
   }, [items, platformFilter])
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -358,6 +299,56 @@ export function CampaignQueueTable({
 
   const queuedCount = items.filter((i) => i.status === "not-started").length
   const runningCount = items.filter((i) => i.status === "in-progress").length
+  const completedCount = items.filter((i) => i.status === "completed").length
+
+  const renderTable = (campaigns: CommentCampaign[]) => (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <Table className="text-sm">
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-8"></TableHead>
+            <TableHead className="w-8">#</TableHead>
+            <TableHead className="w-20">Platform</TableHead>
+            <TableHead className="w-24">Targets</TableHead>
+            <TableHead className="flex-1 min-w-0">Comment</TableHead>
+            <TableHead className="w-20">Status</TableHead>
+            <TableHead className="w-8"></TableHead>
+          </TableRow>
+        </TableHeader>
+        <SortableContext
+          items={campaigns.map((item) => item.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <TableBody>
+            {campaigns.length > 0 ? (
+              campaigns.map((campaign, index) => (
+                <SortableQueueItem
+                  key={campaign.id}
+                  campaign={campaign}
+                  position={index + 1}
+                  onAction={handleAction}
+                />
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={7} className="h-24 text-center">
+                  <div className="flex flex-col items-center justify-center text-muted-foreground">
+                    <ListOrdered className="h-8 w-8 mb-2 opacity-50" />
+                    <p className="text-sm">No campaigns found</p>
+                    <p className="text-xs">Add a campaign to get started</p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </SortableContext>
+      </Table>
+    </DndContext>
+  )
 
   return (
     <Card className="w-full max-w-3xl">
@@ -370,7 +361,7 @@ export function CampaignQueueTable({
               </CardTitle>
             </div>
             <CardDescription className="mt-2">
-              {queuedCount} queued · {runningCount} running
+              {queuedCount} queued · {runningCount} running · {completedCount} completed
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -385,61 +376,31 @@ export function CampaignQueueTable({
               <SelectContent>
                 <SelectItem value="all">All Platforms</SelectItem>
                 <SelectItem value="instagram">Instagram</SelectItem>
-                <SelectItem value="tiktok">TikTok</SelectItem>
-                <SelectItem value="threads">Threads</SelectItem>
-                <SelectItem value="x">X (Twitter)</SelectItem>
+                <SelectItem value="tiktok" disabled>TikTok</SelectItem>
+                <SelectItem value="threads" disabled>Threads</SelectItem>
+                <SelectItem value="x" disabled>X (Twitter)</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-10"></TableHead>
-                <TableHead className="w-12">#</TableHead>
-                <TableHead className="w-28">Platform</TableHead>
-                <TableHead>Targets</TableHead>
-                <TableHead>Comment</TableHead>
-                <TableHead className="w-28">Status</TableHead>
-                <TableHead className="w-12"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <SortableContext
-              items={filteredItems.map((item) => item.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <TableBody>
-                {filteredItems.length > 0 ? (
-                  filteredItems.map((campaign, index) => (
-                    <SortableQueueItem
-                      key={campaign.id}
-                      campaign={campaign}
-                      position={index + 1}
-                      onAction={handleAction}
-                    />
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
-                      <div className="flex flex-col items-center justify-center text-muted-foreground">
-                        <ListOrdered className="h-8 w-8 mb-2 opacity-50" />
-                        <p className="text-sm">No campaigns in queue</p>
-                        <p className="text-xs">Add a campaign to get started</p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </SortableContext>
-          </Table>
-        </DndContext>
+        <Tabs defaultValue="queued" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="queued">
+              Queued ({queuedCampaigns.length})
+            </TabsTrigger>
+            <TabsTrigger value="completed">
+              Completed ({completedCampaigns.length})
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="queued" className="mt-4">
+            {renderTable(queuedCampaigns)}
+          </TabsContent>
+          <TabsContent value="completed" className="mt-4">
+            {renderTable(completedCampaigns)}
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   )

@@ -213,14 +213,6 @@ export function CampaignProgress({ campaignState = demoState }: CampaignProgress
             <p className="text-xs text-muted-foreground">Target</p>
             <p className="text-sm font-medium truncate">{campaignState.targetProfile}</p>
           </div>
-          <div className="space-y-1 p-3 rounded-lg bg-green-50 dark:bg-green-950/20">
-            <p className="text-xs text-green-600 dark:text-green-500">Skipped</p>
-            <p className="text-lg font-bold text-green-600 dark:text-green-500">{campaignState.postsSkipped}</p>
-          </div>
-          <div className="space-y-1 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20">
-            <p className="text-xs text-blue-600 dark:text-blue-500">Remaining</p>
-            <p className="text-lg font-bold text-blue-600 dark:text-blue-500">{campaignState.totalPosts - campaignState.currentPost}</p>
-          </div>
         </div>
 
         {/* Current Comment */}

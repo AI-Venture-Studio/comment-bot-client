@@ -13,6 +13,7 @@ export interface CommentCampaign {
   target_date: string | null // ISO string or null
   number_of_posts: number | null
   status: CampaignStatus
+  queue_position: number | null // Position in the queue
   created_at: string // ISO timestamp
   updated_at: string // ISO timestamp
 }
