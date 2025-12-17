@@ -1,12 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import {
   Tabs,
   TabsContent,
@@ -52,7 +51,6 @@ import {
   Loader2,
   Users
 } from "lucide-react"
-import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { 
   SocialAccount, 
@@ -62,7 +60,6 @@ import {
 } from "@/lib/types/social-account"
 import {
   getAllSocialAccounts,
-  getSocialAccountsByPlatform,
   createSocialAccount,
   updateSocialAccount,
   deleteSocialAccount,
@@ -98,13 +95,7 @@ export default function AccountsSetupPage() {
   })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
 
-  // Fetch accounts on mount
-  useEffect(() => {
-    fetchAccounts()
-    fetchPlatformCounts()
-  }, [])
-
-  const fetchAccounts = async () => {
+  const fetchAccounts = useCallback(async () => {
     setIsLoading(true)
     const { data, error } = await getAllSocialAccounts()
     
@@ -120,7 +111,7 @@ export default function AccountsSetupPage() {
     }
     
     setIsLoading(false)
-  }
+  }, [])
 
   const fetchPlatformCounts = async () => {
     const { data } = await getAccountCountsByPlatform()
@@ -129,7 +120,13 @@ export default function AccountsSetupPage() {
     }
   }
 
-  const getErrorMessage = (error: any): string => {
+  // Fetch accounts on mount
+  useEffect(() => {
+    fetchAccounts()
+    fetchPlatformCounts()
+  }, [fetchAccounts])
+
+  const getErrorMessage = (error: { code?: string; message?: string } | null): string => {
     // Handle PostgreSQL error codes
     if (error?.code === "23505") {
       // Unique constraint violation

@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { toast } from "sonner"
-import { CalendarIcon, Plus, Search, X } from "lucide-react"
+import { CalendarIcon, Plus, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@supabase/supabase-js"
 import { v4 as uuidv4 } from "uuid"
@@ -251,7 +251,7 @@ export function ConfigureComment() {
       }
 
       // Save to Supabase
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("comment_campaigns")
         .insert([campaignData])
         .select()
@@ -263,7 +263,6 @@ export function ConfigureComment() {
       }
 
       toast.success(`Comment Campaign saved successfully!`)
-      console.log("Campaign configuration saved:", data)
 
       // Reset form after successful save
       const resetConfig = {
@@ -579,7 +578,7 @@ export function ConfigureComment() {
                   <>
                     <div className="flex gap-2 text-sm">
                       <span className="text-muted-foreground min-w-[80px]">Comment:</span>
-                      <span className="font-medium">"{summary.comment}"</span>
+                      <span className="font-medium">&ldquo;{summary.comment}&rdquo;</span>
                     </div>
                     <div className="flex gap-2 text-sm">
                       <span className="text-muted-foreground min-w-[80px]">Platform:</span>

@@ -3,20 +3,13 @@
 import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
 import { 
   Loader2, 
-  CheckCircle2, 
-  MessageSquare, 
-  User, 
-  Target,
-  Clock,
+  CheckCircle2,
   Zap,
-  CircleDot
 } from "lucide-react"
-import { cn } from "@/lib/utils"
 import { toast } from "sonner"
+import { CommentCampaign } from "@/lib/types/campaign"
 
 type Platform = "instagram" | "tiktok" | "threads" | "x"
 
@@ -53,84 +46,6 @@ interface CampaignProgressProps {
   campaignState?: CampaignState
 }
 
-const phaseConfig: Record<CampaignPhase, { 
-  label: string
-  icon: React.ReactNode
-  color: string
-  bgColor: string
-}> = {
-  idle: {
-    label: "Waiting to start",
-    icon: <Clock className="h-4 w-4" />,
-    color: "text-gray-500",
-    bgColor: "bg-gray-100"
-  },
-  connecting: {
-    label: "Connecting to browser",
-    icon: <Loader2 className="h-4 w-4 animate-spin" />,
-    color: "text-blue-500",
-    bgColor: "bg-blue-50"
-  },
-  authenticating: {
-    label: "Authenticating session",
-    icon: <Loader2 className="h-4 w-4 animate-spin" />,
-    color: "text-amber-500",
-    bgColor: "bg-amber-50"
-  },
-  navigating: {
-    label: "Navigating to profile",
-    icon: <Target className="h-4 w-4" />,
-    color: "text-purple-500",
-    bgColor: "bg-purple-50"
-  },
-  commenting: {
-    label: "Posting comment",
-    icon: <MessageSquare className="h-4 w-4" />,
-    color: "text-green-500",
-    bgColor: "bg-green-50"
-  },
-  waiting: {
-    label: "Waiting cooldown",
-    icon: <Clock className="h-4 w-4" />,
-    color: "text-orange-500",
-    bgColor: "bg-orange-50"
-  },
-  completed: {
-    label: "Campaign completed",
-    icon: <CheckCircle2 className="h-4 w-4" />,
-    color: "text-green-600",
-    bgColor: "bg-green-50"
-  }
-}
-
-const platformIcons: Record<Platform, string> = {
-  instagram: "IG",
-  tiktok: "TT",
-  threads: "TH",
-  x: "X"
-}
-
-const platformColors: Record<Platform, string> = {
-  instagram: "bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500",
-  tiktok: "bg-black",
-  threads: "bg-gray-900",
-  x: "bg-black"
-}
-
-// Demo state for development - remove in production
-const demoState: CampaignState = {
-  phase: "commenting",
-  currentAccount: "@kwaks419",
-  targetProfile: "@hypebeastkicks",
-  platform: "instagram",
-  currentPost: 3,
-  totalPosts: 59,
-  postsCommented: 2,
-  postsSkipped: 1,
-  commentText: "cool shoes!",
-  isActive: true
-}
-
 interface ProgressEvent {
   sentence: string
   category: string
@@ -141,13 +56,15 @@ interface ProgressEvent {
 
 export function CampaignProgress({ campaignState }: CampaignProgressProps) {
   const [displayedPhase, setDisplayedPhase] = useState<CampaignPhase>("idle")
-  const [isTransitioning, setIsTransitioning] = useState(false)
   const [apiProgress, setApiProgress] = useState<ApiProgressResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [activeCampaign, setActiveCampaign] = useState<any>(null)
+  const [activeCampaign, setActiveCampaign] = useState<CommentCampaign | null>(null)
   const [previousStatus, setPreviousStatus] = useState<string | null>(null)
   const [events, setEvents] = useState<ProgressEvent[]>([])
   const [currentEventIndex, setCurrentEventIndex] = useState(0)
+
+  // Suppress unused variable warnings for state setters we need
+  void setDisplayedPhase
 
   // Fetch current progress from API
   useEffect(() => {
@@ -302,17 +219,6 @@ export function CampaignProgress({ campaignState }: CampaignProgressProps) {
     return () => clearInterval(interval)
   }, [previousStatus, apiProgress?.status])
 
-  useEffect(() => {
-    if (campaignState && campaignState.phase !== displayedPhase) {
-      setIsTransitioning(true)
-      const timer = setTimeout(() => {
-        setDisplayedPhase(campaignState.phase)
-        setIsTransitioning(false)
-      }, 300)
-      return () => clearTimeout(timer)
-    }
-  }, [campaignState?.phase, displayedPhase, campaignState])
-
   // Merge API data with campaign state
   const effectiveState: CampaignState = campaignState || {
     phase: displayedPhase,
@@ -326,10 +232,6 @@ export function CampaignProgress({ campaignState }: CampaignProgressProps) {
     commentText: activeCampaign?.custom_comment || "",
     isActive: apiProgress?.status === "running" || !!activeCampaign
   }
-
-  const currentPhaseConfig = phaseConfig[displayedPhase]
-  // Fix progress percentage calculation - ensure it's between 0-100
-  const progressPercentage = Math.min(100, Math.max(0, apiProgress?.progress || 0))
 
   if (isLoading) {
     return (
