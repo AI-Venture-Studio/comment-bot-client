@@ -70,7 +70,8 @@ export function CampaignProgress({ campaignState }: CampaignProgressProps) {
   useEffect(() => {
     const fetchProgress = async () => {
       try {
-        const response = await fetch('http://localhost:5001/api/progress/current')
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL
+        const response = await fetch(`${apiUrl}/api/progress/current`)
         const data: ApiProgressResponse = await response.json()
         setApiProgress(data)
         
@@ -117,7 +118,7 @@ export function CampaignProgress({ campaignState }: CampaignProgressProps) {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const response = await fetch('http://localhost:5001/api/progress/events?significant_only=true&limit=10')
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/progress/events?significant_only=true&limit=10`)
         const data = await response.json()
         if (data.events && data.events.length > 0) {
           setEvents(data.events)
