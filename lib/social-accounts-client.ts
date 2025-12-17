@@ -75,6 +75,7 @@ export async function createSocialAccount(input: CreateSocialAccountInput) {
         platform: input.platform,
         username: input.username,
         password: input.password,
+        browser_profile: input.browser_profile,
         is_active: true,
       })
       .select()

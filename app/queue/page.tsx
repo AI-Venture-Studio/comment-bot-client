@@ -121,6 +121,7 @@ export default function QueuePage() {
           campaigns={campaigns}
           onReorder={handleReorder}
           onAction={handleAction}
+          onRefresh={fetchCampaigns}
         />
       </div>
       

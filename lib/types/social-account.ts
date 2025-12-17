@@ -5,6 +5,7 @@ export interface SocialAccount {
   platform: SocialPlatform
   username: string
   password: string
+  browser_profile: string
   is_active: boolean
   last_used_at: string | null
   created_at: string
@@ -15,11 +16,13 @@ export interface CreateSocialAccountInput {
   platform: SocialPlatform
   username: string
   password: string
+  browser_profile: string
 }
 
 export interface UpdateSocialAccountInput {
   username?: string
   password?: string
+  browser_profile?: string
   is_active?: boolean
 }
 

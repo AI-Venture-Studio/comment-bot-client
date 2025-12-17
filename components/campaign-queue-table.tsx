@@ -57,7 +57,8 @@ import {
   Trash2, 
   Edit,
   Filter,
-  ListOrdered
+  ListOrdered,
+  RefreshCw
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { CommentCampaign, CampaignStatus, Platform } from "@/lib/types/campaign"
@@ -80,9 +81,11 @@ interface QueueItemProps {
   campaign: CommentCampaign
   position: number
   onAction: (action: string, campaign: CommentCampaign) => void
+  showDragHandle?: boolean
+  showPosition?: boolean
 }
 
-function SortableQueueItem({ campaign, position, onAction }: QueueItemProps) {
+function SortableQueueItem({ campaign, position, onAction, showDragHandle = true, showPosition = true }: QueueItemProps) {
   const {
     attributes,
     listeners,
@@ -111,23 +114,27 @@ function SortableQueueItem({ campaign, position, onAction }: QueueItemProps) {
       )}
     >
       {/* Drag Handle */}
-      <TableCell className="w-8 px-1">
-        <button
-          {...attributes}
-          {...listeners}
-          className={cn(
-            "p-1 rounded cursor-grab active:cursor-grabbing hover:bg-muted",
-            "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-          )}
-        >
-          <GripVertical className="h-4 w-4 text-muted-foreground" />
-        </button>
-      </TableCell>
+      {showDragHandle && (
+        <TableCell className="w-8 px-1">
+          <button
+            {...attributes}
+            {...listeners}
+            className={cn(
+              "p-1 rounded cursor-grab active:cursor-grabbing hover:bg-muted",
+              "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            )}
+          >
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
+          </button>
+        </TableCell>
+      )}
 
       {/* Position */}
-      <TableCell className="w-8 px-1 font-mono text-xs text-muted-foreground">
-        #{position}
-      </TableCell>
+      {showPosition && (
+        <TableCell className="w-8 px-1 font-mono text-xs text-muted-foreground">
+          #{position}
+        </TableCell>
+      )}
 
       {/* Platform */}
       <TableCell className="w-20">
@@ -214,15 +221,18 @@ interface CampaignQueueTableProps {
   campaigns: CommentCampaign[]
   onReorder: (campaigns: CommentCampaign[]) => void
   onAction: (action: string, campaign: CommentCampaign) => void
+  onRefresh?: () => void | Promise<void>
 }
 
 export function CampaignQueueTable({ 
   campaigns, 
   onReorder,
-  onAction 
+  onAction,
+  onRefresh
 }: CampaignQueueTableProps) {
   const [items, setItems] = useState<CommentCampaign[]>(campaigns)
   const [platformFilter, setPlatformFilter] = useState<Platform | "all">("all")
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -231,23 +241,27 @@ export function CampaignQueueTable({
     })
   )
 
+  const handleRefresh = async () => {
+    if (!onRefresh) return
+    setIsRefreshing(true)
+    try {
+      await onRefresh()
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
   // Filter campaigns by status
   const queuedCampaigns = useMemo(() => {
-    let filtered = items.filter((item) => item.status !== "completed")
+    // Only show not-started campaigns in the queued tab
+    let filtered = items.filter((item) => item.status === "not-started")
     
     // Apply platform filter
     if (platformFilter !== "all") {
       filtered = filtered.filter((item) => item.platform === platformFilter)
     }
     
-    // Sort: in-progress first, then not-started
-    const statusOrder: Record<CampaignStatus, number> = {
-      "in-progress": 0,
-      "not-started": 1,
-      "completed": 2,
-    }
-    
-    return [...filtered].sort((a, b) => statusOrder[a.status] - statusOrder[b.status])
+    return filtered
   }, [items, platformFilter])
 
   const completedCampaigns = useMemo(() => {
@@ -258,7 +272,12 @@ export function CampaignQueueTable({
       filtered = filtered.filter((item) => item.platform === platformFilter)
     }
     
-    return filtered
+    // Sort by most recent first (descending order)
+    return filtered.sort((a, b) => {
+      const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0
+      const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0
+      return dateB - dateA
+    })
   }, [items, platformFilter])
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -301,17 +320,13 @@ export function CampaignQueueTable({
   const runningCount = items.filter((i) => i.status === "in-progress").length
   const completedCount = items.filter((i) => i.status === "completed").length
 
-  const renderTable = (campaigns: CommentCampaign[]) => (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragEnd={handleDragEnd}
-    >
+  const renderTable = (campaigns: CommentCampaign[], isDraggable = true) => {
+    const content = (
       <Table className="text-sm">
         <TableHeader>
           <TableRow>
-            <TableHead className="w-8"></TableHead>
-            <TableHead className="w-8">#</TableHead>
+            {isDraggable && <TableHead className="w-8"></TableHead>}
+            {isDraggable && <TableHead className="w-8">#</TableHead>}
             <TableHead className="w-20">Platform</TableHead>
             <TableHead className="w-24">Targets</TableHead>
             <TableHead className="flex-1 min-w-0">Comment</TableHead>
@@ -331,11 +346,13 @@ export function CampaignQueueTable({
                   campaign={campaign}
                   position={index + 1}
                   onAction={handleAction}
+                  showDragHandle={isDraggable}
+                  showPosition={isDraggable}
                 />
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
+                <TableCell colSpan={isDraggable ? 7 : 5} className="h-24 text-center">
                   <div className="flex flex-col items-center justify-center text-muted-foreground">
                     <ListOrdered className="h-8 w-8 mb-2 opacity-50" />
                     <p className="text-sm">No campaigns found</p>
@@ -347,8 +364,22 @@ export function CampaignQueueTable({
           </TableBody>
         </SortableContext>
       </Table>
-    </DndContext>
-  )
+    )
+
+    if (isDraggable) {
+      return (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          {content}
+        </DndContext>
+      )
+    }
+
+    return content
+  }
 
   return (
     <Card className="w-full max-w-3xl">
@@ -365,6 +396,15 @@ export function CampaignQueueTable({
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              title="Refresh campaigns"
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </Button>
             <Filter className="h-4 w-4 text-muted-foreground" />
             <Select
               value={platformFilter}
@@ -395,10 +435,10 @@ export function CampaignQueueTable({
             </TabsTrigger>
           </TabsList>
           <TabsContent value="queued" className="mt-4">
-            {renderTable(queuedCampaigns)}
+            {renderTable(queuedCampaigns, true)}
           </TabsContent>
           <TabsContent value="completed" className="mt-4">
-            {renderTable(completedCampaigns)}
+            {renderTable(completedCampaigns, false)}
           </TabsContent>
         </Tabs>
       </CardContent>

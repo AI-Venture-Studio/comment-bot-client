@@ -94,6 +94,7 @@ export default function AccountsSetupPage() {
     platform: "instagram" as SocialPlatform,
     username: "",
     password: "",
+    browser_profile: "",
   })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
 
@@ -168,6 +169,7 @@ export default function AccountsSetupPage() {
       platform: selectedPlatform,
       username: "",
       password: "",
+      browser_profile: "",
     })
     setFormErrors({})
   }
@@ -181,6 +183,10 @@ export default function AccountsSetupPage() {
     
     if (!formData.password.trim()) {
       errors.password = "Password is required"
+    }
+    
+    if (!formData.browser_profile.trim()) {
+      errors.browser_profile = "Browser profile is required"
     }
     
     setFormErrors(errors)
@@ -199,6 +205,7 @@ export default function AccountsSetupPage() {
       platform: account.platform,
       username: account.username,
       password: account.password,
+      browser_profile: account.browser_profile || "",
     })
     setFormErrors({})
     setIsEditModalOpen(true)
@@ -218,6 +225,7 @@ export default function AccountsSetupPage() {
       platform: formData.platform,
       username: formData.username.trim(),
       password: formData.password,
+      browser_profile: formData.browser_profile.trim(),
     }
     
     const { error } = await createSocialAccount(input)
@@ -251,6 +259,7 @@ export default function AccountsSetupPage() {
     const { error } = await updateSocialAccount(selectedAccount.id, {
       username: formData.username.trim(),
       password: formData.password,
+      browser_profile: formData.browser_profile.trim(),
     })
     
     if (error) {
@@ -500,6 +509,22 @@ export default function AccountsSetupPage() {
               )}
             </div>
 
+            {/* Browser Profile */}
+            <div className="space-y-2">
+              <Label htmlFor="browser_profile">Browser Profile</Label>
+              <Input
+                id="browser_profile"
+                placeholder="Enter browser profile"
+                value={formData.browser_profile}
+                onChange={(e) => setFormData((prev) => ({ ...prev, browser_profile: e.target.value }))}
+                className={formErrors.browser_profile ? "border-destructive" : ""}
+              />
+              {formErrors.browser_profile && (
+                <p className="text-xs text-destructive">{formErrors.browser_profile}</p>
+              )}
+              <p className="text-xs text-muted-foreground">Assigned browser profile for automation</p>
+            </div>
+
           </div>
 
           <DialogFooter>
@@ -554,6 +579,22 @@ export default function AccountsSetupPage() {
               {formErrors.password && (
                 <p className="text-xs text-destructive">{formErrors.password}</p>
               )}
+            </div>
+
+            {/* Browser Profile */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-browser_profile">Browser Profile</Label>
+              <Input
+                id="edit-browser_profile"
+                placeholder="Enter browser profile"
+                value={formData.browser_profile}
+                onChange={(e) => setFormData((prev) => ({ ...prev, browser_profile: e.target.value }))}
+                className={formErrors.browser_profile ? "border-destructive" : ""}
+              />
+              {formErrors.browser_profile && (
+                <p className="text-xs text-destructive">{formErrors.browser_profile}</p>
+              )}
+              <p className="text-xs text-muted-foreground">Assigned browser profile for automation</p>
             </div>
 
           </div>

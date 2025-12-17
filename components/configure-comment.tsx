@@ -134,12 +134,25 @@ export function ConfigureComment() {
   }
 
   const addTargetProfile = () => {
+    if (config.targetProfiles.length >= 5) {
+      toast.error("Maximum of 5 target profiles allowed")
+      return
+    }
+    
     if (currentTargetProfile.trim() && !config.targetProfiles.includes(currentTargetProfile.trim())) {
       setConfig((prev) => ({
         ...prev,
         targetProfiles: [...prev.targetProfiles, currentTargetProfile.trim()],
       }))
       setCurrentTargetProfile("")
+      
+      // Show success message with remaining slots
+      const remaining = 5 - config.targetProfiles.length - 1
+      if (remaining > 0) {
+        toast.success(`Target added (${remaining} slot${remaining !== 1 ? 's' : ''} remaining)`)
+      } else {
+        toast.success("Target added (maximum reached)")
+      }
     }
   }
 
@@ -500,7 +513,12 @@ export function ConfigureComment() {
 
         {/* Target Profiles */}
         <div className="space-y-3">
-          <Label htmlFor="target-profile">Target Profiles</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="target-profile">Target Profiles</Label>
+            <span className="text-xs text-muted-foreground">
+              {config.targetProfiles.length}/5 profiles
+            </span>
+          </div>
           <div className="flex gap-2">
             <Input
               id="target-profile"
@@ -513,12 +531,23 @@ export function ConfigureComment() {
                   addTargetProfile()
                 }
               }}
+              disabled={config.targetProfiles.length >= 5}
             />
-            <Button type="button" onClick={addTargetProfile} variant="secondary">
+            <Button 
+              type="button" 
+              onClick={addTargetProfile} 
+              variant="secondary"
+              disabled={config.targetProfiles.length >= 5}
+            >
               <Plus className="h-4 w-4 mr-1" />
               Add
             </Button>
           </div>
+          {config.targetProfiles.length >= 5 && (
+            <p className="text-xs text-amber-600 dark:text-amber-500">
+              Maximum limit reached. Remove a profile to add another.
+            </p>
+          )}
           {config.targetProfiles.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {config.targetProfiles.map((profile) => (
