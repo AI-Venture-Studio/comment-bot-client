@@ -90,6 +90,16 @@ export default function QueuePage() {
         }
         break
 
+      case "retry":
+        const { error: retryError } = await updateCampaignStatus(campaign.campaign_id, "not-started")
+        if (retryError) {
+          toast.error("Failed to retry campaign")
+        } else {
+          toast.success("Campaign queued for retry")
+          fetchCampaigns()
+        }
+        break
+
       case "edit":
         toast.info("Edit functionality coming soon")
         break

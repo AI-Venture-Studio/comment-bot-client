@@ -57,7 +57,8 @@ import {
   Edit,
   Filter,
   ListOrdered,
-  RefreshCw
+  RefreshCw,
+  RotateCcw
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { CommentCampaign, CampaignStatus, Platform } from "@/lib/types/campaign"
@@ -74,6 +75,7 @@ const statusConfig: Record<CampaignStatus, { label: string; variant: "default" |
   "not-started": { label: "Queued", variant: "secondary" },
   "in-progress": { label: "Running", variant: "info" },
   "completed": { label: "Completed", variant: "success" },
+  "failed": { label: "Failed", variant: "destructive" },
 }
 
 interface QueueItemProps {
@@ -109,7 +111,8 @@ function SortableQueueItem({ campaign, position, onAction, showDragHandle = true
       className={cn(
         "border-b transition-colors hover:bg-muted/50",
         isDragging && "bg-muted shadow-lg z-50 relative",
-        campaign.status === "in-progress" && "bg-green-50/50"
+        campaign.status === "in-progress" && "bg-green-50/50",
+        campaign.status === "failed" && "bg-red-50/50"
       )}
     >
       {/* Drag Handle */}
@@ -198,6 +201,12 @@ function SortableQueueItem({ campaign, position, onAction, showDragHandle = true
                 Pause
               </DropdownMenuItem>
             )}
+            {campaign.status === "failed" && (
+              <DropdownMenuItem onClick={() => onAction("retry", campaign)}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Retry
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={() => onAction("edit", campaign)}>
               <Edit className="mr-2 h-4 w-4" />
               Edit
@@ -279,6 +288,22 @@ export function CampaignQueueTable({
     })
   }, [items, platformFilter])
 
+  const failedCampaigns = useMemo(() => {
+    let filtered = items.filter((item) => item.status === "failed")
+    
+    // Apply platform filter
+    if (platformFilter !== "all") {
+      filtered = filtered.filter((item) => item.platform === platformFilter)
+    }
+    
+    // Sort by most recent first (descending order)
+    return filtered.sort((a, b) => {
+      const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0
+      const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0
+      return dateB - dateA
+    })
+  }, [items, platformFilter])
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
 
@@ -312,12 +337,20 @@ export function CampaignQueueTable({
       )
     } else if (action === "delete") {
       setItems((current) => current.filter((item) => item.id !== campaign.id))
+    } else if (action === "retry") {
+      // Move failed campaign back to queued status
+      setItems((current) =>
+        current.map((item) =>
+          item.id === campaign.id ? { ...item, status: "not-started" as CampaignStatus } : item
+        )
+      )
     }
   }
 
   const queuedCount = items.filter((i) => i.status === "not-started").length
   const runningCount = items.filter((i) => i.status === "in-progress").length
   const completedCount = items.filter((i) => i.status === "completed").length
+  const failedCount = items.filter((i) => i.status === "failed").length
 
   const renderTable = (campaigns: CommentCampaign[], isDraggable = true) => {
     const content = (
@@ -391,7 +424,7 @@ export function CampaignQueueTable({
               </CardTitle>
             </div>
             <CardDescription className="mt-2">
-              {queuedCount} queued · {runningCount} running · {completedCount} completed
+              {queuedCount} queued · {runningCount} running · {completedCount} completed · {failedCount} failed
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -425,12 +458,15 @@ export function CampaignQueueTable({
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="queued" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="queued">
               Queued ({queuedCampaigns.length})
             </TabsTrigger>
             <TabsTrigger value="completed">
               Completed ({completedCampaigns.length})
+            </TabsTrigger>
+            <TabsTrigger value="failed">
+              Failed ({failedCampaigns.length})
             </TabsTrigger>
           </TabsList>
           <TabsContent value="queued" className="mt-4">
@@ -438,6 +474,9 @@ export function CampaignQueueTable({
           </TabsContent>
           <TabsContent value="completed" className="mt-4">
             {renderTable(completedCampaigns, false)}
+          </TabsContent>
+          <TabsContent value="failed" className="mt-4">
+            {renderTable(failedCampaigns, false)}
           </TabsContent>
         </Tabs>
       </CardContent>

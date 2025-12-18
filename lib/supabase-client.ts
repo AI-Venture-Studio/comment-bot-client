@@ -102,11 +102,12 @@ export async function deleteCampaign(campaignId: string) {
  */
 export async function getCampaignsCountByStatus() {
   try {
-    const statuses: CampaignStatus[] = ["not-started", "in-progress", "completed"]
+    const statuses: CampaignStatus[] = ["not-started", "in-progress", "completed", "failed"]
     const counts: Record<CampaignStatus, number> = {
       "not-started": 0,
       "in-progress": 0,
       completed: 0,
+      failed: 0,
     }
 
     for (const status of statuses) {
