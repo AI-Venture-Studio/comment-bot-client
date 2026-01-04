@@ -309,7 +309,7 @@ export function CampaignProgress({ campaignState }: CampaignProgressProps) {
     const interval = setInterval(fetchActiveCampaign, 3000)
 
     return () => clearInterval(interval)
-  }, [previousStatus, apiProgress?.status])
+  }, [previousStatus, apiProgress?.status, apiProgress?.latest_sentence])
 
   // Merge API data with campaign state
   const handleAbortCampaign = async () => {

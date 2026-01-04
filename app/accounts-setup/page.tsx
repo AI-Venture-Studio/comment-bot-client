@@ -361,7 +361,7 @@ export default function AccountsSetupPage() {
               </Button>
             )}
           </div>
-          <Select value={activeFilter} onValueChange={(value: any) => setActiveFilter(value)}>
+          <Select value={activeFilter} onValueChange={(value) => setActiveFilter(value as "all" | "active" | "inactive")}>
             <SelectTrigger className="w-[140px]">
               <SelectValue />
             </SelectTrigger>
