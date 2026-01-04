@@ -49,7 +49,10 @@ import {
   Pencil, 
   Trash2, 
   Loader2,
-  Users
+  Users,
+  Search,
+  X,
+  Info
 } from "lucide-react"
 import { toast } from "sonner"
 import { 
@@ -78,6 +81,10 @@ export default function AccountsSetupPage() {
     facebook: 0,
   })
   const [isLoading, setIsLoading] = useState(true)
+  
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState("")
+  const [activeFilter, setActiveFilter] = useState<"all" | "active" | "inactive">("all")
   
   // Modal state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
@@ -305,74 +312,162 @@ export default function AccountsSetupPage() {
   // Platform sidebar items
   const platforms: SocialPlatform[] = ["instagram", "tiktok", "threads", "x", "facebook"]
 
-  const renderAccountsList = (platformAccounts: SocialAccount[]) => (
-    isLoading ? (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    ) : platformAccounts.length === 0 ? (
-      <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed rounded-lg">
-        <div className="rounded-full bg-muted p-4 mb-4">
-          <Users className="h-8 w-8 text-muted-foreground" />
-        </div>
-        <h3 className="text-lg font-medium mb-1">No accounts configured</h3>
-        <p className="text-sm text-muted-foreground mb-4 text-center">
-          Add your first account to get started
-        </p>
-        <Button 
-          onClick={handleAddAccount}
-          disabled={!platformConfig[selectedPlatform].enabled}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Configure New Account
-        </Button>
-      </div>
-    ) : (
-      <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
-        {platformAccounts.map((account) => (
-          <div
-            key={account.id}
-            className="flex items-center justify-between p-2.5 rounded-md border bg-card hover:bg-muted/50 transition-colors"
-          >
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium truncate">@{account.username}</p>
-                  {account.is_active && (
-                    <span className="relative flex h-1.5 w-1.5 flex-shrink-0">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500"></span>
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0">
-                  <MoreVertical className="h-4 w-4" />
-                  <span className="sr-only">Open menu</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleEditAccount(account)}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => handleDeleteClick(account)}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+  // Filter accounts based on search and active status
+  const filterAccounts = (platformAccounts: SocialAccount[]) => {
+    let filtered = platformAccounts
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter(account => 
+        account.username.toLowerCase().includes(query) ||
+        account.browser_profile?.toLowerCase().includes(query)
+      )
+    }
+
+    // Apply active/inactive filter
+    if (activeFilter === "active") {
+      filtered = filtered.filter(account => account.is_active)
+    } else if (activeFilter === "inactive") {
+      filtered = filtered.filter(account => !account.is_active)
+    }
+
+    return filtered
+  }
+
+  const renderAccountsList = (platformAccounts: SocialAccount[]) => {
+    const filteredAccounts = filterAccounts(platformAccounts)
+    
+    return (
+      <div className="space-y-3">
+        {/* Search and Filter Controls */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search accounts..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-9"
+            />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2"
+                onClick={() => setSearchQuery("")}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
           </div>
-        ))}
+          <Select value={activeFilter} onValueChange={(value: any) => setActiveFilter(value)}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="active">Active Only</SelectItem>
+              <SelectItem value="inactive">Inactive Only</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Accounts List */}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : filteredAccounts.length === 0 && platformAccounts.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed rounded-lg">
+            <div className="rounded-full bg-muted p-4 mb-4">
+              <Users className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-medium mb-1">No accounts configured</h3>
+            <p className="text-sm text-muted-foreground mb-4 text-center">
+              Add your first account to get started
+            </p>
+            <Button 
+              onClick={handleAddAccount}
+              disabled={!platformConfig[selectedPlatform].enabled}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Configure New Account
+            </Button>
+          </div>
+        ) : filteredAccounts.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed rounded-lg">
+            <div className="rounded-full bg-muted p-4 mb-4">
+              <Search className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-medium mb-1">No accounts found</h3>
+            <p className="text-sm text-muted-foreground mb-4 text-center">
+              {searchQuery ? `No results for "${searchQuery}"` : "No accounts match the selected filter"}
+            </p>
+            {(searchQuery || activeFilter !== "all") && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSearchQuery("")
+                  setActiveFilter("all")
+                }}
+              >
+                Clear Filters
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+            {filteredAccounts.map((account) => (
+              <div
+                key={account.id}
+                className="flex items-center justify-between p-2.5 rounded-md border bg-card hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium truncate">@{account.username}</p>
+                      <span className="relative flex h-1.5 w-1.5 flex-shrink-0">
+                        {account.is_active ? (
+                          <>
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500"></span>
+                          </>
+                        ) : (
+                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500"></span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0">
+                      <MoreVertical className="h-4 w-4" />
+                      <span className="sr-only">Open menu</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleEditAccount(account)}>
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => handleDeleteClick(account)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     )
-  )
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center bg-background p-4">
@@ -545,6 +640,16 @@ export default function AccountsSetupPage() {
               Update account details for @{selectedAccount?.username}
             </DialogDescription>
           </DialogHeader>
+          
+          {/* Inactive Account Warning */}
+          {selectedAccount && !selectedAccount.is_active && (
+            <div className="flex items-start gap-2 p-3 rounded-md bg-red-50 border border-red-200">
+              <Info className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-red-600">
+                Manually resolve account before proceeding with it
+              </p>
+            </div>
+          )}
           
           <div className="space-y-4 py-4">
             {/* Username */}

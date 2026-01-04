@@ -91,4 +91,23 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Fix for modal/dialog pointer-events bug */
+  /* Ensure body and root elements always have pointer-events enabled */
+  body, 
+  #__next,
+  html {
+    pointer-events: auto !important;
+  }
+  
+  /* Ensure Radix Portal elements don't block interactions after modal close */
+  [data-radix-portal] {
+    pointer-events: none !important;
+  }
+  
+  /* But allow interactions within the portal content when open */
+  [data-radix-portal] [data-state="open"],
+  [data-radix-portal] [data-state="open"] * {
+    pointer-events: auto !important;
+  }
 }

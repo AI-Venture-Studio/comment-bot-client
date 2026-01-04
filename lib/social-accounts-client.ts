@@ -165,13 +165,12 @@ export async function getActiveAccountsForPlatform(platform: SocialPlatform) {
   try {
     const { data, error } = await supabase
       .from("social_accounts")
-      .select("id, username")
+      .select("id, username, is_active")
       .eq("platform", platform)
-      .eq("is_active", true)
       .order("username", { ascending: true })
 
     if (error) throw error
-    return { data: data as Pick<SocialAccount, "id" | "username">[], error: null }
+    return { data: data as Pick<SocialAccount, "id" | "username" | "is_active">[], error: null }
   } catch (error) {
     return { data: null, error }
   }

@@ -76,6 +76,7 @@ const statusConfig: Record<CampaignStatus, { label: string; variant: "default" |
   "in-progress": { label: "Running", variant: "info" },
   "completed": { label: "Completed", variant: "success" },
   "failed": { label: "Failed", variant: "destructive" },
+  "aborted": { label: "Aborted", variant: "warning" },
 }
 
 interface QueueItemProps {
@@ -201,7 +202,7 @@ function SortableQueueItem({ campaign, position, onAction, showDragHandle = true
                 Pause
               </DropdownMenuItem>
             )}
-            {campaign.status === "failed" && (
+            {(campaign.status === "failed" || campaign.status === "aborted") && (
               <DropdownMenuItem onClick={() => onAction("retry", campaign)}>
                 <RotateCcw className="mr-2 h-4 w-4" />
                 Retry
@@ -304,6 +305,22 @@ export function CampaignQueueTable({
     })
   }, [items, platformFilter])
 
+  const abortedCampaigns = useMemo(() => {
+    let filtered = items.filter((item) => item.status === "aborted")
+    
+    // Apply platform filter
+    if (platformFilter !== "all") {
+      filtered = filtered.filter((item) => item.platform === platformFilter)
+    }
+    
+    // Sort by most recent first (descending order)
+    return filtered.sort((a, b) => {
+      const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0
+      const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0
+      return dateB - dateA
+    })
+  }, [items, platformFilter])
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
 
@@ -351,6 +368,7 @@ export function CampaignQueueTable({
   const runningCount = items.filter((i) => i.status === "in-progress").length
   const completedCount = items.filter((i) => i.status === "completed").length
   const failedCount = items.filter((i) => i.status === "failed").length
+  const abortedCount = items.filter((i) => i.status === "aborted").length
 
   const renderTable = (campaigns: CommentCampaign[], isDraggable = true) => {
     const content = (
@@ -424,7 +442,7 @@ export function CampaignQueueTable({
               </CardTitle>
             </div>
             <CardDescription className="mt-2">
-              {queuedCount} queued · {runningCount} running · {completedCount} completed · {failedCount} failed
+              {queuedCount} queued · {runningCount} running · {completedCount} completed · {failedCount} failed · {abortedCount} aborted
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -458,7 +476,7 @@ export function CampaignQueueTable({
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="queued" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="queued">
               Queued ({queuedCampaigns.length})
             </TabsTrigger>
@@ -467,6 +485,9 @@ export function CampaignQueueTable({
             </TabsTrigger>
             <TabsTrigger value="failed">
               Failed ({failedCampaigns.length})
+            </TabsTrigger>
+            <TabsTrigger value="aborted">
+              Aborted ({abortedCampaigns.length})
             </TabsTrigger>
           </TabsList>
           <TabsContent value="queued" className="mt-4">
@@ -477,6 +498,9 @@ export function CampaignQueueTable({
           </TabsContent>
           <TabsContent value="failed" className="mt-4">
             {renderTable(failedCampaigns, false)}
+          </TabsContent>
+          <TabsContent value="aborted" className="mt-4">
+            {renderTable(abortedCampaigns, false)}
           </TabsContent>
         </Tabs>
       </CardContent>

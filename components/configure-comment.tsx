@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
+import { Slider } from "@/components/ui/slider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
@@ -33,6 +34,7 @@ interface CampaignConfig {
   targetingMode: TargetingMode
   targetDate?: Date
   numberOfPosts?: number
+  postDelay: number  // Time between comments in seconds (8-20)
 }
 
 // Initialize Supabase client
@@ -48,13 +50,14 @@ export function ConfigureComment() {
     targetProfiles: [],
     targetingMode: "posts",
     numberOfPosts: 5,
+    postDelay: 15,  // Default 15 seconds between comments
   })
 
   const [currentUserAccount, setCurrentUserAccount] = useState("")
   const [currentTargetProfile, setCurrentTargetProfile] = useState("")
   const [isSaving, setIsSaving] = useState(false)
   const [datePickerOpen, setDatePickerOpen] = useState(false)
-  const [availableAccounts, setAvailableAccounts] = useState<Pick<SocialAccount, "id" | "username">[]>([])
+  const [availableAccounts, setAvailableAccounts] = useState<Pick<SocialAccount, "id" | "username" | "is_active">[]>([])
   const [accountSearchQuery, setAccountSearchQuery] = useState("")
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(false)
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false)
@@ -247,6 +250,7 @@ export function ConfigureComment() {
         targeting_mode: config.targetingMode,
         target_date: config.targetingMode === "date" ? config.targetDate?.toISOString() : null,
         number_of_posts: config.targetingMode === "posts" ? config.numberOfPosts : null,
+        post_delay: config.postDelay,  // Save user-configured delay
         status: "not-started" as CampaignStatus,
       }
 
@@ -272,6 +276,7 @@ export function ConfigureComment() {
         targetProfiles: [],
         targetingMode: "posts" as TargetingMode,
         numberOfPosts: 5,
+        postDelay: 15,  // Reset to default
       }
       setConfig(resetConfig)
       localStorage.removeItem('campaignConfig')
@@ -307,6 +312,50 @@ export function ConfigureComment() {
           <p className="text-xs text-muted-foreground">
             {config.customComment.length} characters
           </p>
+        </div>
+
+        <Separator />
+
+        {/* Time Between Comments */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label htmlFor="post-delay" className="text-base font-medium">
+                Time Between Comments
+              </Label>
+              <p className="text-sm text-muted-foreground mt-1">
+                Delay applied between commenting on posts (randomized ±20%)
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                id="post-delay"
+                type="number"
+                min="8"
+                max="20"
+                value={config.postDelay}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value) || 15
+                  const clamped = Math.max(8, Math.min(20, value))
+                  setConfig((prev) => ({ ...prev, postDelay: clamped }))
+                }}
+                className="w-20 text-center"
+              />
+              <span className="text-sm text-muted-foreground">seconds</span>
+            </div>
+          </div>
+          <Slider
+            value={[config.postDelay]}
+            onValueChange={([value]) => setConfig((prev) => ({ ...prev, postDelay: value }))}
+            min={8}
+            max={20}
+            step={1}
+            className="w-full"
+          />
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>Faster (8s)</span>
+            <span>Safer (20s)</span>
+          </div>
         </div>
 
         <Separator />
@@ -492,18 +541,30 @@ export function ConfigureComment() {
           </Popover>
           {config.userAccounts.length > 0 && (
             <div className="flex flex-wrap gap-2">
-              {config.userAccounts.map((account) => (
-                <Badge key={account} variant="secondary" className="gap-1">
-                  @{account}
-                  <button
-                    type="button"
-                    onClick={() => removeUserAccount(account)}
-                    className="ml-1 hover:text-destructive"
+              {config.userAccounts.map((account) => {
+                const accountData = availableAccounts.find(a => a.username === account)
+                const isActive = accountData?.is_active ?? true
+                return (
+                  <Badge 
+                    key={account} 
+                    className={cn(
+                      "gap-1",
+                      isActive 
+                        ? "bg-green-100 text-green-800 hover:bg-green-200 border-green-300" 
+                        : "bg-red-100 text-red-800 hover:bg-red-200 border-red-300"
+                    )}
                   >
-                    ×
-                  </button>
-                </Badge>
-              ))}
+                    @{account}
+                    <button
+                      type="button"
+                      onClick={() => removeUserAccount(account)}
+                      className="ml-1 hover:text-destructive"
+                    >
+                      ×
+                    </button>
+                  </Badge>
+                )
+              })}
             </div>
           )}
         </div>
@@ -612,6 +673,7 @@ export function ConfigureComment() {
                 targetProfiles: [],
                 targetingMode: "posts" as TargetingMode,
                 numberOfPosts: 5,
+                postDelay: 15,  // Reset to default
               }
               setConfig(resetConfig)
               localStorage.removeItem('campaignConfig')

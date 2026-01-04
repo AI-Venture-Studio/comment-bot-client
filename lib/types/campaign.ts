@@ -1,4 +1,4 @@
-export type CampaignStatus = "not-started" | "in-progress" | "completed" | "failed"
+export type CampaignStatus = "not-started" | "in-progress" | "completed" | "failed" | "aborted"
 export type Platform = "instagram" | "tiktok" | "threads" | "x"
 export type TargetingMode = "date" | "posts"
 
