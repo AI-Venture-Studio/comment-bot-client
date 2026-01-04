@@ -68,6 +68,7 @@ import {
   deleteSocialAccount,
   getAccountCountsByPlatform,
 } from "@/lib/social-accounts-client"
+import { ProtectedRoute } from "@/components/protected-route"
 
 export default function AccountsSetupPage() {
   // State
@@ -470,18 +471,19 @@ export default function AccountsSetupPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center bg-background p-4">
-      <div className="w-full max-w-3xl space-y-6 mt-8">
-        {/* Accounts Card with Tabs */}
-        <Card className="w-full">
-          <CardHeader className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Social Media Accounts</CardTitle>
-                <CardDescription className="mt-2">
-                  Manage your social media accounts for automation
-                </CardDescription>
-              </div>
+    <ProtectedRoute>
+      <div className="min-h-screen flex flex-col items-center bg-background p-4">
+        <div className="w-full max-w-3xl space-y-6 mt-8">
+          {/* Accounts Card with Tabs */}
+          <Card className="w-full">
+            <CardHeader className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Social Media Accounts</CardTitle>
+                  <CardDescription className="mt-2">
+                    Manage your social media accounts for automation
+                  </CardDescription>
+                </div>
               <Button 
                 onClick={handleAddAccount}
                 disabled={!platformConfig[selectedPlatform].enabled}
@@ -734,5 +736,6 @@ export default function AccountsSetupPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </ProtectedRoute>
   )
 }

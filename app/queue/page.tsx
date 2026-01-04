@@ -11,6 +11,7 @@ import {
   deleteCampaign 
 } from "@/lib/supabase-client"
 import { toast } from "sonner"
+import { ProtectedRoute } from "@/components/protected-route"
 
 export default function QueuePage() {
   const [campaigns, setCampaigns] = useState<CommentCampaign[]>([])
@@ -121,23 +122,25 @@ export default function QueuePage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center bg-background p-4">
-      <div className="w-full max-w-3xl space-y-6 mt-8">
-        {/* Live Campaign Progress */}
-        <CampaignProgress />
+    <ProtectedRoute>
+      <div className="min-h-screen flex flex-col items-center bg-background p-4">
+        <div className="w-full max-w-3xl space-y-6 mt-8">
+          {/* Live Campaign Progress */}
+          <CampaignProgress />
+          
+          {/* Campaign Queue Table */}
+          <CampaignQueueTable 
+            campaigns={campaigns}
+            onReorder={handleReorder}
+            onAction={handleAction}
+            onRefresh={fetchCampaigns}
+          />
+        </div>
         
-        {/* Campaign Queue Table */}
-        <CampaignQueueTable 
-          campaigns={campaigns}
-          onReorder={handleReorder}
-          onAction={handleAction}
-          onRefresh={fetchCampaigns}
-        />
+        <footer className="mt-8 text-center text-sm text-muted-foreground">
+          Built by AIVS, 2025
+        </footer>
       </div>
-      
-      <footer className="mt-8 text-center text-sm text-muted-foreground">
-        Built by AIVS, 2025
-      </footer>
-    </div>
+    </ProtectedRoute>
   );
 }

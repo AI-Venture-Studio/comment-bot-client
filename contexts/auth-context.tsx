@@ -16,8 +16,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Check for existing session authentication
-    const authState = sessionStorage.getItem('isAuthenticated')
+    // Check for existing authentication - only in localStorage
+    const authState = localStorage.getItem('isAuthenticated')
     
     if (authState === 'true') {
       setIsAuthenticated(true)
@@ -28,14 +28,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = () => {
     setIsAuthenticated(true)
-    // Store in sessionStorage to persist across navigation (but not page refresh)
-    sessionStorage.setItem('isAuthenticated', 'true')
+    // Store in localStorage to persist across page refreshes
+    localStorage.setItem('isAuthenticated', 'true')
   }
 
   const logout = () => {
     setIsAuthenticated(false)
-    sessionStorage.removeItem('isAuthenticated')
-    localStorage.removeItem("isAuthenticated")
+    localStorage.removeItem('isAuthenticated')
   }
 
   return (
