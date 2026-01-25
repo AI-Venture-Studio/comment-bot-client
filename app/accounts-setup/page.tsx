@@ -311,7 +311,7 @@ export default function AccountsSetupPage() {
   }
 
   // Platform sidebar items
-  const platforms: SocialPlatform[] = ["instagram", "tiktok", "threads", "x", "facebook"]
+  const platforms: SocialPlatform[] = ["instagram", "x", "tiktok", "threads", "facebook"]
 
   // Filter accounts based on search and active status
   const filterAccounts = (platformAccounts: SocialAccount[]) => {

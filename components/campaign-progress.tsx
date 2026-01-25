@@ -332,11 +332,21 @@ export function CampaignProgress({ campaignState }: CampaignProgressProps) {
         })
       })
       
+      const abortData = await abortResponse.json()
+      
+      // Handle different abort responses
       if (!abortResponse.ok) {
-        throw new Error('Failed to signal abort to backend')
+        // If 400 with not_running status, campaign already stopped - still proceed to update DB
+        if (abortResponse.status === 400 && abortData.status === 'not_running') {
+          console.log('Campaign already stopped, updating database status...')
+        } else {
+          throw new Error(abortData.message || 'Failed to signal abort to backend')
+        }
+      } else if (abortData.status === 'already_stopped') {
+        console.log('Campaign already completed, updating database to aborted status...')
       }
       
-      // Step 2: Update campaign status in database
+      // Step 2: Update campaign status in database (proceed regardless of backend state)
       const dbResponse = await fetch(
         `${supabaseUrl}/rest/v1/comment_campaigns?campaign_id=eq.${activeCampaign.campaign_id}`,
         {
@@ -440,7 +450,7 @@ export function CampaignProgress({ campaignState }: CampaignProgressProps) {
               </div>
             )}
           </div>
-          {effectiveState.isActive && displayedPhase !== "completed" && (
+          {effectiveState.isActive && activeCampaign?.status === "in-progress" && (
             <Button
               variant="destructive"
               size="sm"

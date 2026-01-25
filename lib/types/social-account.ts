@@ -44,7 +44,7 @@ export const platformConfig: Record<SocialPlatform, {
   },
   x: { 
     label: "X (Twitter)", 
-    enabled: false 
+    enabled: true 
   },
   facebook: { 
     label: "Facebook", 

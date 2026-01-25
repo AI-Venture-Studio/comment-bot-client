@@ -10,6 +10,7 @@ import {
   updateCampaignStatus,
   deleteCampaign 
 } from "@/lib/supabase-client"
+import { checkServerConnection, getApiUrl } from "@/lib/api-client"
 import { toast } from "sonner"
 import { ProtectedRoute } from "@/components/protected-route"
 
@@ -62,6 +63,23 @@ export default function QueuePage() {
   const handleAction = async (action: string, campaign: CommentCampaign) => {
     switch (action) {
       case "start":
+        // Check server connection before starting
+        toast.loading("Checking server connection...", { id: "server-check" })
+        const { connected, error } = await checkServerConnection()
+        
+        if (!connected) {
+          toast.error(
+            `Cannot start campaign: ${error || 'Server is not reachable'}. Please check if the server at ${getApiUrl()} is running.`,
+            { 
+              id: "server-check",
+              duration: 6000 
+            }
+          )
+          return
+        }
+        
+        toast.success("Server connected successfully", { id: "server-check" })
+        
         const { error: startError } = await updateCampaignStatus(campaign.campaign_id, "in-progress")
         if (startError) {
           toast.error("Failed to start campaign")

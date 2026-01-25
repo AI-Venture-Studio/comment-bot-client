@@ -64,9 +64,9 @@ export function ConfigureComment() {
 
   const platforms: { id: Platform; label: string }[] = [
     { id: "instagram", label: "Instagram" },
+    { id: "x", label: "X (Twitter)" },
     { id: "tiktok", label: "TikTok" },
     { id: "threads", label: "Threads" },
-    { id: "x", label: "X (Twitter)" },
   ]
 
   // Load saved form state from localStorage on mount
@@ -377,7 +377,7 @@ export function ConfigureComment() {
                   <SelectItem 
                     key={platform.id} 
                     value={platform.id}
-                    disabled={platform.id !== "instagram"}
+                    disabled={platform.id !== "instagram" && platform.id !== "x"}
                   >
                     {platform.label}
                   </SelectItem>

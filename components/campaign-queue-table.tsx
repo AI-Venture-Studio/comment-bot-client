@@ -466,9 +466,9 @@ export function CampaignQueueTable({
               <SelectContent>
                 <SelectItem value="all">All Platforms</SelectItem>
                 <SelectItem value="instagram">Instagram</SelectItem>
+                <SelectItem value="x">X (Twitter)</SelectItem>
                 <SelectItem value="tiktok" disabled>TikTok</SelectItem>
                 <SelectItem value="threads" disabled>Threads</SelectItem>
-                <SelectItem value="x" disabled>X (Twitter)</SelectItem>
               </SelectContent>
             </Select>
           </div>
